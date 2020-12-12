@@ -57,34 +57,23 @@ function calculateVoiceAudio(state: AmongUsState, settings: ISettings, me: Playe
 	if (isNaN(panPos[1])) panPos[1] = 999;
 	panPos[0] = Math.min(999, Math.max(-999, panPos[0]));
 	panPos[1] = Math.min(999, Math.max(-999, panPos[1]));
-	if (other.inVent) {
+
+	const canHearStates = [GameState.LOBBY, GameState.DISCUSSION, GameState.TASKS];
+	const cantHear = other.inVent
+		|| (!me.isDead && other.isDead)
+		|| !canHearStates.includes(state.gameState)
+		// 7 appears to be screen range, more or less
+		|| Math.sqrt(Math.pow(panPos[0], 2) + Math.pow(panPos[1], 2)) > 7;
+
+	if (cantHear) {
 		gain.gain.value = 0;
 		return;
 	}
-	if (me.isDead && other.isDead) {
-		gain.gain.value = 1;
-		pan.positionX.setValueAtTime(panPos[0], audioContext.currentTime);
-		pan.positionY.setValueAtTime(panPos[1], audioContext.currentTime);
-		return;
-	}
-	if (!me.isDead && other.isDead) {
-		gain.gain.value = 0;
-		return;
-	}
-	if (state.gameState === GameState.LOBBY || state.gameState === GameState.DISCUSSION) {
-		gain.gain.value = 1;
-		pan.positionX.setValueAtTime(panPos[0], audioContext.currentTime);
-		pan.positionY.setValueAtTime(panPos[1], audioContext.currentTime);
-	} else if (state.gameState === GameState.TASKS) {
-		gain.gain.value = 1;
-		pan.positionX.setValueAtTime(panPos[0], audioContext.currentTime);
-		pan.positionY.setValueAtTime(panPos[1], audioContext.currentTime);
-	} else {
-		gain.gain.value = 0;
-	}
-	if (gain.gain.value === 1 && Math.sqrt(Math.pow(panPos[0], 2) + Math.pow(panPos[1], 2)) > 7) {
-		gain.gain.value = 0;
-	}
+
+	gain.gain.value = 1;
+	
+	pan.positionX.setValueAtTime(panPos[0], audioContext.currentTime);
+	pan.positionY.setValueAtTime(panPos[1], audioContext.currentTime);
 }
 
 
@@ -256,10 +245,10 @@ const Voice: React.FC = function () {
 					const gain = context.createGain();
 					const pan = context.createPanner();
 					pan.refDistance = 0.1;
-					pan.panningModel = 'equalpower';
+					pan.panningModel = 'HRTF';
 					pan.distanceModel = 'linear';
 					pan.maxDistance = 2.66 * 2;
-					pan.rolloffFactor = 1;
+					pan.rolloffFactor = 2;
 
 					source.connect(pan);
 					pan.connect(gain);
